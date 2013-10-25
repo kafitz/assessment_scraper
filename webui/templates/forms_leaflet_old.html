@@ -1,0 +1,52 @@
+{%- extends "layout.html" %}
+
+{%- block body_content %}
+{% from "_formhelpers.html" import render_field %}
+<!-- Form and table -->
+<p><b>Street selection:</b></p>
+<form id="input-street" action="." method="POST">
+  <!-- Necessary to pass through CSRF token -->
+  {{ street_form.hidden_tag() }}
+  <dl>
+    {{ render_field(street_form.street_name) }}
+    <!-- {/{ render_field(form.start_address) }} -->
+    <!-- {/{ render_field(form.end_address) }} -->
+  </dl>
+  <p><input type="submit" id="find-street" value="Find neighborhoods" /></p>
+</form>
+
+<!-- Neighborhood selection list -->
+<script type=text/javascript>{% include "js/populate_streetlist.js" %}</script>
+<p><b>Neighborhood input:</b></p>
+<form id="input-address-range" action="." method="POST">
+  <div id="neighborhood-dropdown"></div>
+  {{ address_form.hidden_tag() }}
+  <dl>
+    {{ render_field(address_form.start_address) }}
+    {{ render_field(address_form.end_address) }}
+  </dl>
+  <p><input type="submit" id="scrape-nbhood" value="Scrape selected neighborhood" /></p>
+</form>
+
+
+<!-- Map code -->
+<div id="map-div" style="width: 100%; height: 500px"></div>
+<link type=text/css rel=stylesheet href="{{ url_for('static', filename='leaflet/wax/ext/leaflet.css') }}" />
+<script type=text/javascript src="{{ url_for('static', filename='leaflet/wax/ext/leaflet-src.js') }}"></script>
+<script type=text/javascript src="{{ url_for('static', filename='leaflet/wax/dist/wax.leaf.js') }}"></script>
+<script type=text/javascript>
+  wax.tilejson("{{ url_for('static', filename='leaflet/mbtiles/metadata.json') }}",
+    function(tilejson) {
+    var map = new L.Map("map-div")
+      .addLayer(new wax.leaf.connector(tilejson))
+      .setView(new L.LatLng(45.5179,-73.6201), 11);
+    wax.leaf.interaction()
+      .map(map)
+      .tilejson(tilejson)
+      .on(wax.tooltip().animate(false).parent(map._container).events());
+  });
+</script>
+
+<!-- Empty div to append street name -->
+<span id="results" hidden=True></span>
+{%- endblock %}

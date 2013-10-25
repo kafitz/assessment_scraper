@@ -1,0 +1,23 @@
+<!-- extend from base layout.html -->
+{%- extends "layout.html" %}
+
+{%- block body_content %}
+
+<br />
+<p>Download assessment .csv(s):</p>
+
+{% for address in csv_url_dict.keys()|sort %}
+	<li style="font-size: 80%;">{{ address }}:
+		{% for url, name in csv_url_dict[address] %}
+			<ul><a href="{{ url }}" style="font-size:13.5px;">{{ name }}</a></ul>
+		{% endfor %}
+	</li>
+{% endfor %}
+
+<br />
+<br />
+<br />
+<br />
+<br />
+<p><a href="/scraper">Return home</a></p>
+{%- endblock %}
