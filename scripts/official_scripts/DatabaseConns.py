@@ -4,12 +4,8 @@
 import sqlite3
 import os
 
-class Database():
-	def __init__(self):
-		self.conn = None
-		self.c = None
-
-	def connect(self, database_name):
+class Database(object):
+	def __init__(self, database_name):
 	    '''Initiate database connection'''
 	    if not os.path.exists(database_name):
 	        print "Database does not exist. Creating new database file..."
