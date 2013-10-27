@@ -92,7 +92,6 @@ def get_street_parameters(row):
         article_code = db_articles.get(article)
     if article_code:
         test_street = " ".join(name_parts)
-        print test_street.split(article)
     else:
         article = None
     ## STREET NUMBERS
@@ -272,8 +271,6 @@ for row in row_dicts:
     
     output_list = street_parameters.items()
     if result:
-        # print street_parameters.items()
-        # print result.items()
         output_list = output_list + result.items()
     output_dict = dict(output_list)
     output_rows.append(output_dict)
