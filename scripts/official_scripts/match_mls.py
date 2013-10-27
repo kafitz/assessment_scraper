@@ -4,6 +4,7 @@
 import xlrd
 from LookupTables import LookupTable as LT
 from DatabaseConns import Database
+from OutputCSV import OutputCSV
 from unidecode import unidecode
 
 from pprint import pprint
@@ -62,7 +63,6 @@ def get_street_parameters(row):
         street_type_code = None # prefix signifier detected to be as part of the street name (i.e., '9E AVENUE')
         street_type = None
     num_parts = len(name_parts)
-
     ## STREET ORIENTATION (is this noted in the database?)
     if num_parts > 1:
         # determine if there is an orientation included at the end of the street name
@@ -74,11 +74,9 @@ def get_street_parameters(row):
             name_parts.pop() # remove orientation from street_name list
     else:
         pass
-
     ## FRENCH ARTICLE CODE
     # reverse article codes dictionary for easy lookup
     db_articles = {value:key for key, value in LT.dom_b72lien_tab.iteritems()}
-
     # exception cases for difficult apostrophe'd articles
     # (spaces to exclude articles within the identifying name which would use dashes)
     if " d'" in street_name:
@@ -93,21 +91,19 @@ def get_street_parameters(row):
     if article:
         article_code = db_articles.get(article)
     if article_code:
-        name_parts.pop(0)
+        test_street = " ".join(name_parts)
+        print test_street.split(article)
     else:
         article = None
-
     ## STREET NUMBERS
     lower_street_num = row['no_civique_debut']
     upper_street_num = None
     if row['no_civique_fin']:
         lower_street_num = row['no_civique_fin']
-
     ## SUITE NUMBER
     suite = None
     if row['appartement']:
         suite = row['appartement']
-
     ## OUTPUT DICT
     street_nominal = ' '.join(name_parts).upper()
     street_parameters = {
@@ -178,7 +174,7 @@ def get_query_response(street_parameters):
     def _map_to_dict(db_entry):
         result_dict = {}
         result_dict['start_address'] = db_entry[24]
-        result_dict['suite_num'] = db_entry[25]
+        result_dict['db_suite'] = db_entry[25]
         result_dict['end_address'] = db_entry[26]
         result_dict['street_code'] = db_entry[28]
         result_dict['street_name'] = db_entry[30]
@@ -219,7 +215,7 @@ def get_query_response(street_parameters):
             print "Suite match: {}-{} {}, suite {}".format(result['start_address'],
                                                         result['end_address'],
                                                         result['street_name'],
-                                                        result['suite_num'])
+                                                        result['db_suite'])
             return result
         else:
             print "Multiple results returned for address, no matching suite found."
@@ -238,9 +234,9 @@ def get_query_response(street_parameters):
 ### MAIN
 row_dicts = get_spreadsheet_dict(INPUT_SPREADSHEET)
 print 'Rows for %s:' % (YEAR,), len(row_dicts)
-
 index = 0
 matches = 0
+output_rows = []
 for row in row_dicts:
     street_parameters = get_street_parameters(row)
     
@@ -273,10 +269,25 @@ for row in row_dicts:
         matches += 1
     else:
         print 'Missed:', str(street_parameters['street_number_lower']) + " " + street_parameters['street_nominal']
+    
+    output_list = street_parameters.items()
+    if result:
+        # print street_parameters.items()
+        # print result.items()
+        output_list = output_list + result.items()
+    output_dict = dict(output_list)
+    output_rows.append(output_dict)
     print 'Matches: {}/{}'.format(matches, index + 1)
     print 'Pct. Matched: ', float(matches) / (index + 1)
     print 'Pct. of total: ', float(index + 1) / len(row_dicts)
     index += 1
-    # if index == 5000:
+    # if index == 4:
     #     break
 
+field_order = ['street_number_lower', 'street_number_upper', 'street_nominal',
+                'orientation', 'suite_num', 'street_type', 'type_code',
+                'joining_article', 'article_code', 'start_address', 'end_address',
+                'street_name', 'db_suite', 'street_code', 'land_value',
+                'building_value', 'total_value']
+_csv = OutputCSV()
+_csv.write_dicts(output_rows, field_order)
