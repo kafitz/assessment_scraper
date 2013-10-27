@@ -91,20 +91,22 @@ def get_street_parameters(row):
     if article:
         article_code = db_articles.get(article)
     if article_code:
-        test_street = " ".join(name_parts)
+        # trim the article from the street_name string
+        test_street = ' '.join(name_parts)
+        street_nominal = test_street.split(article)[-1].strip().upper()
     else:
         article = None
+        street_nominal = ' '.join(name_parts).upper()
     ## STREET NUMBERS
     lower_street_num = row['no_civique_debut']
     upper_street_num = None
     if row['no_civique_fin']:
-        lower_street_num = row['no_civique_fin']
+        upper_street_num = row['no_civique_fin']
     ## SUITE NUMBER
     suite = None
     if row['appartement']:
         suite = row['appartement']
     ## OUTPUT DICT
-    street_nominal = ' '.join(name_parts).upper()
     street_parameters = {
         'street_nominal': street_nominal,
         'street_type': street_type,
@@ -122,11 +124,12 @@ def db_search_address(table, sql_criteria):
     '''Try to find the address in database by exact match'''
     # concatenate the sql string to execute on the database
     # '''SELECT * FROM 'table' WHERE "foo"="132" and "bar"="MAIN"'''
-    sql_command = '''SELECT * FROM '{}' WHERE'''.format(table)    
+    sql_command = '''SELECT * FROM '{}' WHERE'''.format(table)
     for index, criteria in enumerate(sql_criteria):
         sql_command = sql_command + ''' "{}"="{}"'''.format(criteria[0], criteria[1])
         if index + 1 != len(sql_criteria):
             sql_command = sql_command + " AND"
+    print sql_command
     db.query(sql_command)
     return db.fetchall()
 
@@ -143,6 +146,7 @@ def db_search_entire_street(table, street_parameters):
     addresses for the particular street'''
     street_name = street_parameters['street_nominal']
     sql_command = '''SELECT "b72m1", "b72a1" FROM '{}' WHERE "b72voie1"="{}"'''.format(table, street_name)
+    print sql_command
     db.query(sql_command)
     street_number_lower = street_parameters['street_number_lower']
     possible_pairs = []
@@ -197,7 +201,6 @@ def get_query_response(street_parameters):
         if street_parameters['type_code']: # street type
             sql_criteria.append(('b72r1', street_parameters['type_code']))
         r = db_search_address(table_name, sql_criteria)
-
     # single address match
     if len(r) == 1:
         r = r[0]
@@ -238,19 +241,17 @@ matches = 0
 output_rows = []
 for row in row_dicts:
     street_parameters = get_street_parameters(row)
-    
-    print "Search:", "{}-{} {}, suite {}".format(street_parameters['street_number_upper'],
-                                                    street_parameters['street_number_lower'],
-                                                    street_parameters['street_nominal'],
-                                                    street_parameters['suite_num'])
     # skip inputs without a designated street address
     if not street_parameters['street_number_lower'] and not street_parameters['street_number_upper']:
         continue
     if not street_parameters['street_number_lower']:
-        continue
+        continue    
+    print "Search:", "{}-{} {}, suite {}".format(street_parameters['street_number_lower'],
+                                                    street_parameters['street_number_upper'],
+                                                    street_parameters['street_nominal'],
+                                                    street_parameters['suite_num'])
     if street_parameters['street_number_upper'] and not street_parameters['street_number_lower']:
         street_parameters['street_number_lower'] = street_parameters['street_number_upper']
-        street_parameters['street_number_upper'] = None
     result = get_query_response(street_parameters)
     street_parts = street_parameters['street_nominal'].split()
     if not result and len(street_parts) > 1:
@@ -265,6 +266,7 @@ for row in row_dicts:
                 print 'Failure'
 
     if result:
+        print result
         matches += 1
     else:
         print 'Missed:', str(street_parameters['street_number_lower']) + " " + street_parameters['street_nominal']
@@ -277,14 +279,15 @@ for row in row_dicts:
     print 'Matches: {}/{}'.format(matches, index + 1)
     print 'Pct. Matched: ', float(matches) / (index + 1)
     print 'Pct. of total: ', float(index + 1) / len(row_dicts)
+    print
     index += 1
-    # if index == 4:
+    # if index == 500:
     #     break
 
-field_order = ['street_number_lower', 'street_number_upper', 'street_nominal',
-                'orientation', 'suite_num', 'street_type', 'type_code',
-                'joining_article', 'article_code', 'start_address', 'end_address',
-                'street_name', 'db_suite', 'street_code', 'land_value',
-                'building_value', 'total_value']
-_csv = OutputCSV()
-_csv.write_dicts(output_rows, field_order)
+# field_order = ['street_number_lower', 'street_number_upper', 'street_nominal',
+#                 'orientation', 'suite_num', 'street_type', 'type_code',
+#                 'joining_article', 'article_code', 'start_address', 'end_address',
+#                 'street_name', 'db_suite', 'street_code', 'land_value',
+#                 'building_value', 'total_value']
+# _csv = OutputCSV()
+# _csv.write_dicts(output_rows, field_order)
