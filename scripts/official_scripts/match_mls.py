@@ -137,7 +137,11 @@ def db_search_address(table, sql_criteria):
 
 def db_match_suite(street_parameters, db_matches):
     '''If multiple addresses match SQL query, search these for a matching suite number'''
-    pass
+    matching_result = None
+    for match in db_matches:
+        if street_parameters['suite_num'] == match[31]:
+            matching_result = match
+    return matching_result
 
 def db_search_entire_street(table, street_parameters):
     '''If exact match fails: search for address in the full range of 
@@ -145,8 +149,7 @@ def db_search_entire_street(table, street_parameters):
     street_name = street_parameters['street_nominal']
     sql_command = '''SELECT "b72m1", "b72a1" FROM '{}' WHERE "b72voie1"="{}"'''.format(table, street_name)
     db.query(sql_command)
-    street_number_lower = int(street_parameters['street_number_lower'])
-    street_number_lower = 3895
+    street_number_lower = street_parameters['street_number_lower']
     possible_pairs = []
     for address_pair in sorted(db.fetchall()):
         # ignore tuples that do not form an address range for a property
@@ -160,7 +163,7 @@ def db_search_entire_street(table, street_parameters):
         # generate the range of possible addresses for a certain property (inclusive of the last address)
         address_range = range(matching_pair[0], matching_pair[1], 2)
         address_range.append(matching_pair[1])
-        if street_number_lower in address_range:
+        if street_number_lower in [str(x) for x in address_range]:
             matched_address_pair = matching_pair
             break
     if matched_address_pair:
@@ -174,10 +177,11 @@ def get_query_response(street_parameters):
     '''Script specific function for matching database response to dict variables'''
     def _map_to_dict(db_entry):
         result_dict = {}
-        result_dict['street_name'] = db_entry[30]
         result_dict['start_address'] = db_entry[24]
+        result_dict['suite_num'] = db_entry[25]
+        result_dict['end_address'] = db_entry[26]
         result_dict['street_code'] = db_entry[28]
-        result_dict['end_address'] = db_entry[25]
+        result_dict['street_name'] = db_entry[30]
         result_dict['land_value'] = db_entry[45]
         result_dict['building_value'] = db_entry[46]
         result_dict['total_value'] = db_entry[47]
@@ -199,6 +203,7 @@ def get_query_response(street_parameters):
             sql_criteria.append(('b72r1', street_parameters['type_code']))
         r = db_search_address(table_name, sql_criteria)
 
+    # single address match
     if len(r) == 1:
         r = r[0]
         result = _map_to_dict(r)
@@ -206,11 +211,20 @@ def get_query_response(street_parameters):
                                             result['end_address'],
                                             result['street_name'])
         return result
+    # multiple results for a single address, narrow by suite
     elif len(r) > 1:
-        print "!!!!!MULTIPLE MATCHES"
+        matched_r = db_match_suite(street_parameters, r)
+        if matched_r:
+            result = _map_to_dict(matched_r)
+            print "Suite match: {}-{} {}, suite {}".format(result['start_address'],
+                                                        result['end_address'],
+                                                        result['street_name'],
+                                                        result['suite_num'])
+            return result
+        else:
+            print "Multiple results returned for address, no matching suite found."
+    # no results, look for address in db address range (e.g., 3564 in a building range of 3562-3566)
     else:
-        # search for address between listed start and end street address numbers
-        # listed in database
         updated_parameters = db_search_entire_street(table_name, street_parameters)
         if updated_parameters:
             recursive_result = get_query_response(updated_parameters)
@@ -229,6 +243,19 @@ index = 0
 matches = 0
 for row in row_dicts:
     street_parameters = get_street_parameters(row)
+    
+    print "Search:", "{}-{} {}, suite {}".format(street_parameters['street_number_upper'],
+                                                    street_parameters['street_number_lower'],
+                                                    street_parameters['street_nominal'],
+                                                    street_parameters['suite_num'])
+    # skip inputs without a designated street address
+    if not street_parameters['street_number_lower'] and not street_parameters['street_number_upper']:
+        continue
+    if not street_parameters['street_number_lower']:
+        continue
+    if street_parameters['street_number_upper'] and not street_parameters['street_number_lower']:
+        street_parameters['street_number_lower'] = street_parameters['street_number_upper']
+        street_parameters['street_number_upper'] = None
     result = get_query_response(street_parameters)
     street_parts = street_parameters['street_nominal'].split()
     if not result and len(street_parts) > 1:
@@ -236,7 +263,7 @@ for row in row_dicts:
         if street_parts[-1].upper() == 'AVENUE':
             street_parameters['street_nominal'] = street_parts[0]
             print 'Trying double query...',
-            result = parse_query_response(street_parameters)
+            result = get_query_response(street_parameters)
             if result:
                 print 'Success'
             else:
@@ -244,12 +271,11 @@ for row in row_dicts:
 
     if result:
         matches += 1
-        print 'Matches: {}/{}'.format(matches, index + 1)
-        print 'Pct. Matched: ', float(matches) / (index + 1)
-        print 'Pct. of total: ', float(index + 1) / len(row_dicts)
     else:
         print 'Missed:', str(street_parameters['street_number_lower']) + " " + street_parameters['street_nominal']
-        break
+    print 'Matches: {}/{}'.format(matches, index + 1)
+    print 'Pct. Matched: ', float(matches) / (index + 1)
+    print 'Pct. of total: ', float(index + 1) / len(row_dicts)
     index += 1
     # if index == 5000:
     #     break
