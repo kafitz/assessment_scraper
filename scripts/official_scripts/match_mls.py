@@ -129,7 +129,6 @@ def db_search_address(table, sql_criteria):
         sql_command = sql_command + ''' "{}"="{}"'''.format(criteria[0], criteria[1])
         if index + 1 != len(sql_criteria):
             sql_command = sql_command + " AND"
-    print sql_command
     db.query(sql_command)
     return db.fetchall()
 
@@ -146,7 +145,6 @@ def db_search_entire_street(table, street_parameters):
     addresses for the particular street'''
     street_name = street_parameters['street_nominal']
     sql_command = '''SELECT "b72m1", "b72a1" FROM '{}' WHERE "b72voie1"="{}"'''.format(table, street_name)
-    print sql_command
     db.query(sql_command)
     street_number_lower = street_parameters['street_number_lower']
     possible_pairs = []
@@ -281,13 +279,13 @@ for row in row_dicts:
     print 'Pct. of total: ', float(index + 1) / len(row_dicts)
     print
     index += 1
-    # if index == 500:
-    #     break
+    if index == 500:
+        break
 
-# field_order = ['street_number_lower', 'street_number_upper', 'street_nominal',
-#                 'orientation', 'suite_num', 'street_type', 'type_code',
-#                 'joining_article', 'article_code', 'start_address', 'end_address',
-#                 'street_name', 'db_suite', 'street_code', 'land_value',
-#                 'building_value', 'total_value']
-# _csv = OutputCSV()
-# _csv.write_dicts(output_rows, field_order)
+field_order = ['street_number_lower', 'street_number_upper', 'street_nominal',
+                'orientation', 'suite_num', 'street_type', 'type_code',
+                'joining_article', 'article_code', 'start_address', 'end_address',
+                'street_name', 'db_suite', 'street_code', 'land_value',
+                'building_value', 'total_value']
+_csv = OutputCSV()
+_csv.write_dicts(output_rows, field_order)
