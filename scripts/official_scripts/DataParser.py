@@ -70,6 +70,7 @@ def get_street_parameters(row):
     db_articles = {value:key for key, value in LT.dom_b72lien_tab.iteritems()}
     # exception cases for difficult apostrophe'd articles
     # (spaces to exclude articles within the identifying name which would use dashes)
+    
     if " d'" in street_name:
         article = "d'"
     elif " de l'" in street_name:
@@ -79,8 +80,7 @@ def get_street_parameters(row):
     else:
         article = name_parts[0]
     # lookup code from database dict
-    if article:
-        article_code = db_articles.get(article)
+    article_code = db_articles.get(article)
     if article_code:
         # trim the article from the street_name string
         test_street = ' '.join(name_parts)

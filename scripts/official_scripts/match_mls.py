@@ -39,11 +39,15 @@ def db_match_suite(street_parameters, db_matches):
 def db_search_entire_street(table, street_parameters):
     '''If exact match fails: search for address in the full range of 
     addresses for the particular street'''
+    start_time = time.time()
     street_name = street_parameters['street_nominal']
-    sql_command = '''SELECT "b72m1", "b72a1" FROM '{}' WHERE "b72voie1"="{}"'''.format(table, street_name)
-    db.query(sql_command)
     street_number_lower = street_parameters['street_number_lower']
+    print time.time() - start_time
+    sql_command = '''SELECT "b72m1", "b72a1" FROM '{}' WHERE "b72voie1"="{}"'''.format(table, street_name)
+    print sql_command
+    db.query(sql_command)
     possible_pairs = []
+    print time.time() - start_time
     for address_pair in sorted(db.fetchall()):
         # ignore tuples that do not form an address range for a property
         if address_pair[1] == 0:
@@ -52,6 +56,7 @@ def db_search_entire_street(table, street_parameters):
         if address_pair[0] <= street_number_lower and address_pair[1] >= street_number_lower:
             possible_pairs.append(address_pair)
     matched_address_pair = None
+    print time.time() - start_time
     for matching_pair in possible_pairs:
         # generate the range of possible addresses for a certain property (inclusive of the last address)
         address_range = range(matching_pair[0], matching_pair[1], 2)
@@ -59,6 +64,7 @@ def db_search_entire_street(table, street_parameters):
         if street_number_lower in [str(x) for x in address_range]:
             matched_address_pair = matching_pair
             break
+    print time.time() - start_time
     if matched_address_pair:
         street_parameters['street_number_lower'] = matched_address_pair[0]
         street_parameters['street_number_upper'] = matched_address_pair[1]
@@ -79,7 +85,6 @@ def get_query_response(street_parameters):
         result_dict['building_value'] = db_entry[46]
         result_dict['total_value'] = db_entry[47]
         return result_dict
-    start_time = time.time()
     ## SEARCH FOR XLS ADDRESS NUMBER AS BOTH START AND END (if needed) ADDRESS
     table_name = 'joined_data'
     # create a list of tuples to specifiy the db search criteria
@@ -102,7 +107,6 @@ def get_query_response(street_parameters):
         print "Address match: {}-{} {}".format(result['start_address'],
                                             result['end_address'],
                                             result['street_name'])
-        print "single address:", time.time() - start_time
         return result
     # multiple results for a single address, narrow by suite
     elif len(r) > 1:
@@ -113,23 +117,22 @@ def get_query_response(street_parameters):
                                                         result['end_address'],
                                                         result['street_name'],
                                                         result['db_suite'])
-            print "suite match:", time.time() - start_time
             return result
         else:
             print "Multiple results returned for address, no matching suite found."
     # no results, look for address in db address range (e.g., 3564 in a building range of 3562-3566)
     else:
         pass
-        # print 'YOOOOOOOOOOOOOOOOOOOOOoo'
         # updated_parameters = db_search_entire_street(table_name, street_parameters)
         # if updated_parameters:
         #     recursive_result = get_query_response(updated_parameters)
         #     print "Found address pair: {}-{} {}".format(updated_parameters['street_number_lower'], updated_parameters['street_number_upper'], updated_parameters['street_nominal'])
-        #     print "recursive street search:", time.time() - start_time
         #     return recursive_result
         # else:
         #     print "No address match found: {} {}".format(street_parameters['street_number_lower'], street_parameters['street_nominal'])
     return None
+
+
 
 
 ### MAIN
@@ -152,18 +155,24 @@ for row in row_dicts:
                                                     street_parameters['suite_num'])
     if street_parameters['street_number_upper'] and not street_parameters['street_number_lower']:
         street_parameters['street_number_lower'] = street_parameters['street_number_upper']
+    saved_street_part = None
+    if street_parameters['joining_article']:
+        saved_street_part = street_parameters['street_nominal']
+        street_parameters['street_nominal'] = street_parameters['joining_article'].upper() + " " + street_parameters['street_nominal']
+
     result = get_query_response(street_parameters)
     street_parts = street_parameters['street_nominal'].split()
-    if not result and len(street_parts) > 1:
-        # special case: addresses like "25E AVENUE"--attempt scrape for both "25E AVENUE" and "25E"
-        if street_parts[-1].upper() == 'AVENUE':
+    # special cases for double query
+    if not result:
+        # addresses like "25E AVENUE"--attempt scrape for both "25E AVENUE" and "25E"
+        if len(street_parts) > 1 and street_parts[-1].upper() == 'AVENUE':
+            print 'Trying AVENUE query...',
             street_parameters['street_nominal'] = street_parts[0]
-            print 'Trying double query...',
             result = get_query_response(street_parameters)
-            if result:
-                print 'Success'
-            else:
-                print 'Failure'
+        if saved_street_part:
+            print 12345
+            street_parameters['street_nominal'] = saved_street_part
+            result = get_query_response(street_parameters)
 
     if result:
         matches += 1
@@ -190,10 +199,11 @@ for row in row_dicts:
     print 'Pct. of total: ', float(index + 1) / len(row_dicts)
     print
     index += 1
-    if index == 50:
-        break
+    # if index == 5000:
+    #     break
 
-# pprint(missed_addresses)
+pprint(len(missed_addresses))
+pprint(len(output_rows))
 field_order = ['street_number_lower', 'street_number_upper', 'street_nominal',
                 'orientation', 'suite_num', 'sale_price', 'street_type', 'type_code',
                 'joining_article', 'article_code', 'start_address', 'end_address',
