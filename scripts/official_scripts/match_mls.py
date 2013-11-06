@@ -1,124 +1,20 @@
 #!/usr/bin/env python
 # 2013 Kyle Fitzsimmons
 
-import xlrd
-from LookupTables import LookupTable as LT
+import DataParser as DP
 from DatabaseConns import Database
 from OutputCSV import OutputCSV
 from unidecode import unidecode
-
 from pprint import pprint
+import time
 
 ### GLOBALS
 INPUT_SPREADSHEET = '../../data/input/kyle3.xls'
-LOOKUP_DB = '../../data/official_data/test.sqlite'
+LOOKUP_DB = '../../data/official_data/test2.sqlite'
 YEAR = 2009
 
 db = Database(LOOKUP_DB)
 
-
-def get_spreadsheet_dict(spreadsheet_filename):
-    '''Load MLS sales spreadsheet to a dictionary'''
-    
-    def _create_row_dict(headers, row):
-        return dict(zip(headers, row))
-
-    workbook = xlrd.open_workbook(spreadsheet_filename)
-    sheet = workbook.sheet_by_index(1)
-
-    row_list = []
-    for index in range(sheet.nrows):
-        # fetch header row
-        if index == 0:
-            headers = sheet.row_values(index)
-            continue
-        row = sheet.row_values(index)
-        # remove rows that do match the desired year from input
-        row_year = int(row[1].split('/')[-1])
-        if row_year == YEAR:
-            row_list.append(row)
-        else:
-            pass
-    return [_create_row_dict(headers, row) for row in row_list]
-
-def get_street_parameters(row):
-    '''Format input .xls row to dictionary'''
-    street = row['nom_complet']
-    street_name = unidecode(street).lower()
-    name_parts = street_name.split()
-    street_type_code = None
-    orientation = None
-    article = None # French articles such as "le" or "des"
-    article_code = None
-
-    ## STREET TYPE
-    test_street_type = name_parts[0]
-    for key, db_street_types in LT.dom_b72r1_tab.iteritems():
-        if test_street_type in db_street_types:
-            street_type_code = key
-            street_type = test_street_type
-            name_parts.pop(0)
-            break
-    if not street_type_code:
-        street_type_code = None # prefix signifier detected to be as part of the street name (i.e., '9E AVENUE')
-        street_type = None
-    num_parts = len(name_parts)
-    ## STREET ORIENTATION (is this noted in the database?)
-    if num_parts > 1:
-        # determine if there is an orientation included at the end of the street name
-        orientations = ('N', 'S', 'O', 'E')
-        last_word = name_parts[-1].upper().replace('.', '')
-        if last_word in orientations:
-            orientation = last_word
-        if orientation:
-            name_parts.pop() # remove orientation from street_name list
-    else:
-        pass
-    ## FRENCH ARTICLE CODE
-    # reverse article codes dictionary for easy lookup
-    db_articles = {value:key for key, value in LT.dom_b72lien_tab.iteritems()}
-    # exception cases for difficult apostrophe'd articles
-    # (spaces to exclude articles within the identifying name which would use dashes)
-    if " d'" in street_name:
-        article = "d'"
-    elif " de l'" in street_name:
-        article = "de l'"
-    elif "de la" in street_name:
-        article = "de la"
-    else:
-        article = name_parts[0]
-    # lookup code from database dict
-    if article:
-        article_code = db_articles.get(article)
-    if article_code:
-        # trim the article from the street_name string
-        test_street = ' '.join(name_parts)
-        street_nominal = test_street.split(article)[-1].strip().upper()
-    else:
-        article = None
-        street_nominal = ' '.join(name_parts).upper()
-    ## STREET NUMBERS
-    lower_street_num = row['no_civique_debut']
-    upper_street_num = None
-    if row['no_civique_fin']:
-        upper_street_num = row['no_civique_fin']
-    ## SUITE NUMBER
-    suite = None
-    if row['appartement']:
-        suite = row['appartement']
-    ## OUTPUT DICT
-    street_parameters = {
-        'street_nominal': street_nominal,
-        'street_type': street_type,
-        'type_code': street_type_code,
-        'orientation': orientation,
-        'joining_article': article,
-        'article_code': article_code,
-        'street_number_lower': lower_street_num,
-        'street_number_upper': upper_street_num,
-        'suite_num': suite 
-        }
-    return street_parameters
 
 def db_search_address(table, sql_criteria):
     '''Try to find the address in database by exact match'''
@@ -171,11 +67,11 @@ def db_search_entire_street(table, street_parameters):
         return None
 
 def get_query_response(street_parameters):
-    '''Script specific function for matching database response to dict variables'''
+    '''Script-specific function for matching database response to dict variables'''
     def _map_to_dict(db_entry):
         result_dict = {}
         result_dict['start_address'] = db_entry[24]
-        result_dict['db_suite'] = db_entry[25]
+        result_dict['db_suite'] = db_entry[31]
         result_dict['end_address'] = db_entry[26]
         result_dict['street_code'] = db_entry[28]
         result_dict['street_name'] = db_entry[30]
@@ -183,7 +79,7 @@ def get_query_response(street_parameters):
         result_dict['building_value'] = db_entry[46]
         result_dict['total_value'] = db_entry[47]
         return result_dict
-
+    start_time = time.time()
     ## SEARCH FOR XLS ADDRESS NUMBER AS BOTH START AND END (if needed) ADDRESS
     table_name = 'joined_data'
     # create a list of tuples to specifiy the db search criteria
@@ -206,6 +102,7 @@ def get_query_response(street_parameters):
         print "Address match: {}-{} {}".format(result['start_address'],
                                             result['end_address'],
                                             result['street_name'])
+        print "single address:", time.time() - start_time
         return result
     # multiple results for a single address, narrow by suite
     elif len(r) > 1:
@@ -216,29 +113,34 @@ def get_query_response(street_parameters):
                                                         result['end_address'],
                                                         result['street_name'],
                                                         result['db_suite'])
+            print "suite match:", time.time() - start_time
             return result
         else:
             print "Multiple results returned for address, no matching suite found."
     # no results, look for address in db address range (e.g., 3564 in a building range of 3562-3566)
     else:
-        updated_parameters = db_search_entire_street(table_name, street_parameters)
-        if updated_parameters:
-            recursive_result = get_query_response(updated_parameters)
-            print "Found address pair: {}-{} {}".format(updated_parameters['street_number_lower'], updated_parameters['street_number_upper'], updated_parameters['street_nominal'])
-            return recursive_result
-        else:
-            print "No address match found: {} {}".format(street_parameters['street_number_lower'], street_parameters['street_nominal'])
+        pass
+        # print 'YOOOOOOOOOOOOOOOOOOOOOoo'
+        # updated_parameters = db_search_entire_street(table_name, street_parameters)
+        # if updated_parameters:
+        #     recursive_result = get_query_response(updated_parameters)
+        #     print "Found address pair: {}-{} {}".format(updated_parameters['street_number_lower'], updated_parameters['street_number_upper'], updated_parameters['street_nominal'])
+        #     print "recursive street search:", time.time() - start_time
+        #     return recursive_result
+        # else:
+        #     print "No address match found: {} {}".format(street_parameters['street_number_lower'], street_parameters['street_nominal'])
     return None
 
 
 ### MAIN
-row_dicts = get_spreadsheet_dict(INPUT_SPREADSHEET)
+row_dicts = DP.get_xls_dict(INPUT_SPREADSHEET, YEAR)
 print 'Rows for %s:' % (YEAR,), len(row_dicts)
 index = 0
 matches = 0
 output_rows = []
+missed_addresses = []
 for row in row_dicts:
-    street_parameters = get_street_parameters(row)
+    street_parameters = DP.get_street_parameters(row)
     # skip inputs without a designated street address
     if not street_parameters['street_number_lower'] and not street_parameters['street_number_upper']:
         continue
@@ -264,14 +166,23 @@ for row in row_dicts:
                 print 'Failure'
 
     if result:
-        print result
         matches += 1
     else:
-        print 'Missed:', str(street_parameters['street_number_lower']) + " " + street_parameters['street_nominal']
-    
-    output_list = street_parameters.items()
+        address_str = '{}-{} {}, suite {}'.format(row['no_civique_debut'].encode('utf-8'), row['no_civique_fin'].encode('utf-8'),
+                                                    row['nom_complet'].encode('utf-8'), row['appartement'].encode('utf-8'))
+        print "Missed:", address_str
+        missed_addresses.append(address_str)
+    #input search items
+    output_list = [('start_address', row['no_civique_debut']),
+                   ('end_address', row['no_civique_fin']),
+                   ('street_nominal', unidecode(row['nom_complet'])),
+                   ('suite_num', row['appartement']),
+                   ('sale_price', row['prix_vendu']),
+                   ('orientation', street_parameters['orientation']),
+                   ('street_type', street_parameters['street_type'])
+                   ]
     if result:
-        output_list = output_list + result.items()
+        output_list = output_list + result.items() # results
     output_dict = dict(output_list)
     output_rows.append(output_dict)
     print 'Matches: {}/{}'.format(matches, index + 1)
@@ -279,11 +190,12 @@ for row in row_dicts:
     print 'Pct. of total: ', float(index + 1) / len(row_dicts)
     print
     index += 1
-    if index == 500:
+    if index == 50:
         break
 
+# pprint(missed_addresses)
 field_order = ['street_number_lower', 'street_number_upper', 'street_nominal',
-                'orientation', 'suite_num', 'street_type', 'type_code',
+                'orientation', 'suite_num', 'sale_price', 'street_type', 'type_code',
                 'joining_article', 'article_code', 'start_address', 'end_address',
                 'street_name', 'db_suite', 'street_code', 'land_value',
                 'building_value', 'total_value']
