@@ -10,7 +10,7 @@ import time
 
 ### GLOBALS
 INPUT_SPREADSHEET = '../../data/input/kyle3.xls'
-LOOKUP_DB = '../../data/official_data/test2.sqlite'
+LOOKUP_DB = '../../data/official_data/test.sqlite'
 YEAR = 2009
 
 db = Database(LOOKUP_DB)
@@ -174,24 +174,28 @@ for row in row_dicts:
             street_parameters['street_nominal'] = saved_street_part
             result = get_query_response(street_parameters)
 
+    #input search items
+    output_list = [('street_number_lower', row['no_civique_debut']),
+                   ('street_number_upper', row['no_civique_fin']),
+                   ('street_nominal', unidecode(row['nom_complet'])),
+                   ('suite_num', row['appartement']),
+                   ('sale_price', row['prix_vendu']),
+                   ('orientation', street_parameters['orientation']),
+                   ('street_type', street_parameters['street_type']),
+                   ('joining_article', street_parameters['joining_article']),
+                   ('article_code', street_parameters['article_code'])
+                   ]
     if result:
+        print result
+        print
+        output_list = output_list + result.items() # results
         matches += 1
     else:
         address_str = '{}-{} {}, suite {}'.format(row['no_civique_debut'].encode('utf-8'), row['no_civique_fin'].encode('utf-8'),
                                                     row['nom_complet'].encode('utf-8'), row['appartement'].encode('utf-8'))
         print "Missed:", address_str
         missed_addresses.append(address_str)
-    #input search items
-    output_list = [('start_address', row['no_civique_debut']),
-                   ('end_address', row['no_civique_fin']),
-                   ('street_nominal', unidecode(row['nom_complet'])),
-                   ('suite_num', row['appartement']),
-                   ('sale_price', row['prix_vendu']),
-                   ('orientation', street_parameters['orientation']),
-                   ('street_type', street_parameters['street_type'])
-                   ]
-    if result:
-        output_list = output_list + result.items() # results
+    
     output_dict = dict(output_list)
     output_rows.append(output_dict)
     print 'Matches: {}/{}'.format(matches, index + 1)
@@ -205,7 +209,7 @@ for row in row_dicts:
 pprint(len(missed_addresses))
 pprint(len(output_rows))
 field_order = ['street_number_lower', 'street_number_upper', 'street_nominal',
-                'orientation', 'suite_num', 'sale_price', 'street_type', 'type_code',
+                'orientation', 'suite_num', 'sale_price', 'street_type', 'street_code',
                 'joining_article', 'article_code', 'start_address', 'end_address',
                 'street_name', 'db_suite', 'street_code', 'land_value',
                 'building_value', 'total_value']
