@@ -186,8 +186,6 @@ for row in row_dicts:
                    ('article_code', street_parameters['article_code'])
                    ]
     if result:
-        print result
-        print
         output_list = output_list + result.items() # results
         matches += 1
     else:
@@ -203,8 +201,7 @@ for row in row_dicts:
     print 'Pct. of total: ', float(index + 1) / len(row_dicts)
     print
     index += 1
-    # if index == 5000:
-    #     break
+
 
 pprint(len(missed_addresses))
 pprint(len(output_rows))
