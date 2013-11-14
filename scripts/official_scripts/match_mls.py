@@ -15,7 +15,6 @@ YEAR = 2009
 
 db = Database(LOOKUP_DB)
 
-
 def db_search_address(table, sql_criteria):
     '''Try to find the address in database by exact match'''
     # concatenate the sql string to execute on the database
@@ -142,6 +141,7 @@ index = 0
 matches = 0
 output_rows = []
 missed_addresses = []
+row_dicts = [row for row in row_dicts if row['prix_vendu'] != ''] # remove rows with blank sales price
 for row in row_dicts:
     street_parameters = DP.get_street_parameters(row)
     # skip inputs without a designated street address
@@ -185,13 +185,23 @@ for row in row_dicts:
                    ('joining_article', street_parameters['joining_article']),
                    ('article_code', street_parameters['article_code'])
                    ]
+    missing_data = [('start_address', None),
+                    ('end_address', None),
+                    ('street_name', None),
+                    ('street_code', None),
+                    ('db_suite', None), 
+                    ('land_value', None),
+                    ('building_value', None),
+                    ('total_value', None)
+                    ]
     if result:
-        output_list = output_list + result.items() # results
+        output_list += result.items() # results
         matches += 1
     else:
         address_str = '{}-{} {}, suite {}'.format(row['no_civique_debut'].encode('utf-8'), row['no_civique_fin'].encode('utf-8'),
                                                     row['nom_complet'].encode('utf-8'), row['appartement'].encode('utf-8'))
         print "Missed:", address_str
+        output_list += missing_data
         missed_addresses.append(address_str)
     
     output_dict = dict(output_list)
@@ -202,13 +212,11 @@ for row in row_dicts:
     print
     index += 1
 
-
 pprint(len(missed_addresses))
 pprint(len(output_rows))
 field_order = ['street_number_lower', 'street_number_upper', 'street_nominal',
                 'orientation', 'suite_num', 'sale_price', 'street_type', 'street_code',
                 'joining_article', 'article_code', 'start_address', 'end_address',
-                'street_name', 'db_suite', 'street_code', 'land_value',
-                'building_value', 'total_value']
-_csv = OutputCSV()
-_csv.write_dicts(output_rows, field_order)
+                'street_name', 'db_suite', 'land_value', 'building_value', 'total_value']
+output_db = Database('../../data/official_data/test_output.sqlite')
+output_db.write_rows('test', output_rows, field_order)
