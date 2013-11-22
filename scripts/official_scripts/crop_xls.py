@@ -3,17 +3,18 @@
 
 import xlrd
 import xlwt
+import datetime
 from IPython import embed
 
 ### GLOBALS
-INPUT_SPREADSHEET = '../../data/input/kyle3.xls'
+INPUT_SPREADSHEET = '../../data/input/kyle4.xls'
 KEEP_CRITERIA = 2009
-OUTPUT_SPREADSHEET = '2009_sales.xls'
+OUTPUT_SPREADSHEET = '../../data/geocoding/official_mls_2009_sales.xls'
 
 def get_spreadsheet_rows(spreadsheet_filename):
     '''Load excel spreadsheet to a list of rows'''
     workbook = xlrd.open_workbook(spreadsheet_filename)
-    sheet = workbook.sheet_by_index(1)
+    sheet = workbook.sheet_by_index(0)
     sheet_name = sheet.name
 
     row_list = []
@@ -21,14 +22,28 @@ def get_spreadsheet_rows(spreadsheet_filename):
         # fetch header row
         if index == 0:
             headers = sheet.row_values(index)
+            row_list.append(headers)
             continue
         row = sheet.row_values(index)
         # remove rows that do match the desired year from input
-        row_year = int(row[1].split('/')[-1])
-        if row_year == KEEP_CRITERIA:
-            row_list.append(row)
+        try:
+            # if date read as a string from excel
+            row_year = int(row[1].split('/')[-1])
+        except:
+            # if date read as a float
+            row_date = datetime.datetime(*xlrd.xldate_as_tuple(row[1], workbook.datemode))
+            row_year = row_date.year
+        try:
+            sale_price = int(row[8])
+        except:
+            sale_price = None
+
+        if row_year != KEEP_CRITERIA:
+            continue
+        elif not sale_price:
+            continue
         else:
-            pass
+            row_list.append(row)
     return sheet_name, row_list
 
 def write_new_spreadsheet(sheet_name, rows):
