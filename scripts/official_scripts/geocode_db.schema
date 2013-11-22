@@ -1,0 +1,16 @@
+CREATE TABLE "{}" (
+    id INTEGER NOT NULL,
+    no_civique_debut TEXT,
+    no_civique_fin TEXT,
+    nom_complet TEXT,
+    appartement TEXT,
+    quart_mun_arr_id INTEGER, 
+    catg_code TEXT,
+    date_changement_statut INTEGER, 
+    prix_vendu INTEGER, 
+    latitude FLOAT,
+    longitude FLOAT,
+    no_inscription INTEGER,
+    multiple_matches INTEGER, 
+    PRIMARY KEY (id)
+)
