@@ -3,9 +3,9 @@
 
 import shapefile
 
-POINTS_JOINED_REGIONS = 'correlated_sale_points_municipalities'
-REGION_BASEMAP = 'assessment_role_regions'
-OUTPUT_SHAPEFILE = 'assessment_role_regions_correlated'
+POINTS_JOINED_REGIONS = '../../data/shapefiles/correlated_sale_points_municipalities'
+REGION_BASEMAP = '../../data/shapefiles/assessment_role_regions'
+OUTPUT_SHAPEFILE = '../../data/shapefiles/assessment_role_regions_correlated'
 
 
 points_sf = shapefile.Reader(POINTS_JOINED_REGIONS)
