@@ -4,7 +4,7 @@
 import xlrd
 import xlwt
 import datetime
-from IPython import embed
+from unidecode import unidecode
 
 ### GLOBALS
 INPUT_SPREADSHEET = '../../data/input/kyle4.xls'
@@ -37,8 +37,15 @@ def get_spreadsheet_rows(spreadsheet_filename):
             sale_price = int(row[8])
         except:
             sale_price = None
+        try:
+            start_address = str(row[3]).strip()
+        except:
+            start_address = unidecode(row[3]).strip()
+
 
         if row_year != KEEP_CRITERIA:
+            continue
+        elif start_address == '' or start_address == 'A VENIR':
             continue
         elif not sale_price:
             continue

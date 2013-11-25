@@ -8,7 +8,10 @@ import dataset
 from sqlalchemy.exc import StatementError
 from unidecode import unidecode
 import geopy
+import logging
 
+logger = logging.getLogger()
+logger.setLevel(logging.CRITICAL)
 
 def coerce_to_int(possible_float):
     try:
@@ -17,6 +20,20 @@ def coerce_to_int(possible_float):
     except:
         return possible_float
 
+def get_muni_lookup_table(workbook):
+    muni_sh = workbook.sheet_by_index(1)
+    rows = [muni_sh.row_values(rownum) for rownum in range(muni_sh.nrows)]
+    rows.pop(0) # header row
+    muni_lookup = {}
+    for row in rows:
+        test_name = unidecode(row[1])
+        if '(' in test_name:
+            name_pt1 = test_name.split('(')[1]
+            muni_name = name_pt1.split(')')[0]
+        else:
+            muni_name = test_name
+        muni_lookup[int(row[0])] = muni_name
+    return muni_lookup
 
 year = '2009'
 g = geopy.geocoders.GoogleV3(domain='maps.google.ca')
@@ -24,18 +41,28 @@ g = geopy.geocoders.GoogleV3(domain='maps.google.ca')
 wb = xlrd.open_workbook('../../data/geocoding/official_mls_2009_sales.xls')
 sh = wb.sheet_by_index(0)
 # Output database
-success_db = dataset.connect('sqlite:///../../data/geocoding/geocoded_xls_input.sqlite')
+success_db = dataset.connect('sqlite:///../../data/geocoding/geocoded_xls.sqlite')
 failed_db = dataset.connect('sqlite:///../../data/geocoding/failed_lookup.sqlite')
-failed_geocodes = failed_db[year + '_failed_geocodes']
+
 # create table with proper schema
 if year + '_sales' not in success_db.tables:
-    success_schema = open('geocode_db.schema').read()
-    success_db.query(success_schema.format(year + '_sales'))
-successful_geocodes = success_db[year + '_sales']    
+    schema = open('geocode_db.schema').read()
+    success_db.query(schema.format(year + '_sales'))
+successful_geocodes = success_db[year + '_sales']
+if year + '_failed_geocodes' not in failed_db.tables:
+    schema = open('geocode_db.schema').read()
+    failed_db.query(schema.format(year + '_failed_geocodes'))
+failed_geocodes = failed_db[year + '_failed_geocodes']
+print "Loaded databases..."
 
 row_list = []
 for rownum in range(sh.nrows):
     row_list.append(sh.row_values(rownum))
+print "Loaded .xls file..."
+
+muni_wb = xlrd.open_workbook('../../data/input/kyle4.xls')
+muni_lookup_table = get_muni_lookup_table(muni_wb)
+print "Loaded municipality lookup table..."
 
 header_row = row_list.pop(0)
 failed_header = header_row[:]
@@ -46,12 +73,15 @@ failed_entries = []
 for row in row_list:
     current_row += 1
     print("Row: {0}/{1} ({2:2f}%)".format(current_row, total_rows, float(current_row) / total_rows * 100))
-    start_address = str(coerce_to_int(row[3]))
+    try:
+        start_address = str(coerce_to_int(row[3]))
+    except:
+        start_address = unidecode(row[3])
     street_address = start_address + ' ' + row[6].split(',')[0]
-    search_str = street_address + ", " + "Montreal, QC"
+    municipality = muni_lookup_table[int(row[7])]
+    search_str = street_address + ", " + municipality
     search_address = unidecode(search_str)
     # Look for entry in success results
-    print '''SELECT id FROM "2009_sales" WHERE nom_complet="%s" AND no_civique_debut="%s"''' % (row[6], start_address)
     try:
         entry_exists = [x for x in success_db.query('''SELECT id FROM "2009_sales" WHERE nom_complet="%s" AND no_civique_debut="%s"''' % (row[6], start_address))]
     except:
@@ -59,7 +89,7 @@ for row in row_list:
     # If not there, search in failed_lookups success_db
     if not entry_exists:
         try:
-            entry_exists = [x for x in failed_db.query('''SELECT id FROM "failed_2009_sales" WHERE nom_complet="%s" AND no_civique_debut="%s"''' % (row[6], start_address))]
+            entry_exists = [x for x in failed_db.query('''SELECT id FROM "2009_failed_geocodes" WHERE nom_complet="%s" AND no_civique_debut="%s"''' % (row[6], start_address))]
         except:
             entry_exists = False
     # If in neither, attempt to geocode
@@ -82,8 +112,16 @@ for row in row_list:
             table_update.update({'latitude': float(lat), 'longitude': float(lng)})
             if len(response) != 1:
                 table_update.update({'multiple_matches': 1})
+            if start_address not in place.encode('utf-8'):
+                print "Error: Google could not match exact address."
+                failed_geocodes.insert(table_update)
+                continue
             successful_geocodes.insert(table_update)
-        except geopy.geocoders.googlev3.GeocoderQueryError:
+        except TypeError:
+            print("Couldn't find address.")
+            print(table_update)
+            failed_geocodes.insert(table_update)            
+        except geopy.exc.GeocoderQueryError:
             print("Couldn't find address.")
             print(table_update)
             failed_geocodes.insert(table_update)
@@ -91,10 +129,10 @@ for row in row_list:
             print("Couldn't insert entry, improperly formatted data?")
             print(table_update)
             failed_entries.append(table_update)
-        except geopy.geocoders.googlev3.GeocoderQuotaExceeded:
+        except geopy.exc.GeocoderQuotaExceeded:
             print("Geocoding quota exceeded.")
             break
-        time.sleep(.5)
+        time.sleep(0.5)
 
 
 for item in failed_entries:
