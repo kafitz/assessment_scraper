@@ -8,8 +8,8 @@ from pprint import pprint
 import time
 
 ### GLOBALS
-INPUT_SPREADSHEET = '../../data/input/sales_with_muni_codes.xls'
-LOOKUP_DB = '../../data/official_data/test.sqlite'
+INPUT_ADDRESSES = '../../data/input/sales_with_muni_codes.csv'
+LOOKUP_DB = '../../data/databases/roll_shapefile.sqlite'
 OUTPUT_DB = '../../data/databases/matched_mls_assessments.sqlite'
 YEAR = 2009
 
@@ -39,31 +39,33 @@ def get_query_response(street_parameters):
     '''Script-specific function for matching database response to dict variables'''
     def _map_to_dict(db_entry):
         result_dict = {}
-        result_dict['start_address'] = db_entry[24]
-        result_dict['db_suite'] = db_entry[31]
-        result_dict['end_address'] = db_entry[26]
-        result_dict['street_code'] = db_entry[28]
-        result_dict['street_name'] = db_entry[30]
-        result_dict['land_value'] = db_entry[45]
-        result_dict['building_value'] = db_entry[46]
-        result_dict['total_value'] = db_entry[47]
+        result_dict['start_address'] = db_entry[21]
+        result_dict['db_suite'] = db_entry[28]
+        result_dict['end_address'] = db_entry[23]
+        result_dict['street_code'] = db_entry[25]
+        result_dict['street_name'] = db_entry[27]
+        result_dict['land_value'] = db_entry[41]
+        result_dict['building_value'] = db_entry[42]
+        result_dict['total_value'] = db_entry[43]
+        print result_dict
         return result_dict
     ## SEARCH FOR XLS ADDRESS NUMBER AS BOTH START AND END (if needed) ADDRESS
-    table_name = 'joined_data'
+    table_name = 'full_data'
     # create a list of tuples to specifiy the db search criteria
-    sql_criteria = [('b72voie1', street_parameters['street_nominal'].upper()),
-                    ('b72m1', street_parameters['street_number_lower']),
-                    ('code_mun', street_parameters['role_muni_code'])]
+    sql_criteria = [('B72VOIE1', street_parameters['street_nominal'].upper()),
+                    ('B72M1', street_parameters['street_number_lower']),
+                    ('CODE_MUN', street_parameters['roll_muni_code'])]
     if street_parameters['type_code']: # street type
-        sql_criteria.append(('b72r1', street_parameters['type_code']))
+        sql_criteria.append(('B72R1', street_parameters['type_code']))
+    print sql_criteria
     r = db_search_address(table_name, sql_criteria)
     if not r:
         # create a list of tuples to specifiy the db search criteria
-        sql_criteria = [('b72voie1', street_parameters['street_nominal'].upper()),
-                        ('b72a1', street_parameters['street_number_lower']),
-                        ('code_mun', street_parameters['role_muni_code'])] 
+        sql_criteria = [('B72VOIE1', street_parameters['street_nominal'].upper()),
+                        ('B72A1', street_parameters['street_number_lower']),
+                        ('CODE_MUN', street_parameters['roll_muni_code'])] 
         if street_parameters['type_code']: # street type
-            sql_criteria.append(('b72r1', street_parameters['type_code']))
+            sql_criteria.append(('B72R1', street_parameters['type_code']))
         r = db_search_address(table_name, sql_criteria)
     # single address match
     if len(r) == 1:
@@ -91,7 +93,7 @@ def get_query_response(street_parameters):
 
 
 ### MAIN
-row_dicts = DP.get_xls_dict(INPUT_SPREADSHEET, YEAR)
+row_dicts = DP.get_csv_dict(INPUT_ADDRESSES, YEAR)
 print 'Rows for %s:' % (YEAR,), len(row_dicts)
 index = 0
 matches = 0
@@ -104,13 +106,14 @@ for row in row_dicts:
     if not street_parameters['street_number_lower'] and not street_parameters['street_number_upper']:
         continue
     if not street_parameters['street_number_lower']:
-        continue    
+        continue 
+    if street_parameters['street_number_upper'] and not street_parameters['street_number_lower']:
+        street_parameters['street_number_lower'] = street_parameters['street_number_upper']
+        street_parameters['street_number_upper'] = None
     print "Search:", "{}-{} {}, suite {}".format(street_parameters['street_number_lower'],
                                                     street_parameters['street_number_upper'],
                                                     street_parameters['street_nominal'],
                                                     street_parameters['suite_num'])
-    if street_parameters['street_number_upper'] and not street_parameters['street_number_lower']:
-        street_parameters['street_number_lower'] = street_parameters['street_number_upper']
     saved_street_part = None
     if street_parameters['joining_article']:
         saved_street_part = street_parameters['street_nominal']
@@ -130,16 +133,16 @@ for row in row_dicts:
             result = get_query_response(street_parameters)
 
     #input search items
-    output_list = [('street_number_lower', row['no_civique_debut']),
-                   ('street_number_upper', row['no_civique_fin']),
-                   ('street_nominal', unidecode(row['nom_complet'])),
-                   ('suite_num', row['appartement']),
+    output_list = [('street_number_lower', row['no_civique']),
+                   ('street_number_upper', row['no_civiq_1']),
+                   ('street_nominal', row['nom_comple']),
+                   ('suite_num', row['appartemen']),
                    ('sale_price', row['prix_vendu']),
                    ('orientation', street_parameters['orientation']),
                    ('street_type', street_parameters['street_type']),
                    ('joining_article', street_parameters['joining_article']),
                    ('article_code', street_parameters['article_code']),
-                   ('muni_code', street_parameters['role_muni_code'])
+                   ('muni_code', street_parameters['roll_muni_code'])
                    ]
     missing_data = [('start_address', None),
                     ('end_address', None),
@@ -154,8 +157,8 @@ for row in row_dicts:
         output_list += result.items() # results
         matches += 1
     else:
-        address_str = '{}-{} {}, suite {}'.format(row['no_civique_debut'], row['no_civique_fin'],
-                                                    row['nom_complet'].encode('utf-8'), row['appartement'])
+        address_str = '{}-{} {}, suite {}'.format(row['no_civique'], row['no_civiq_1'],
+                                                    row['nom_comple'], row['appartemen'])
         print "Missed:", address_str
         output_list += missing_data
         missed_addresses.append(address_str)

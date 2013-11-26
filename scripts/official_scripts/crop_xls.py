@@ -1,14 +1,14 @@
 #!/usr/bin/env python
 # 2013 Kyle Fitzsimmons
 
+import datetime
 import xlrd
 import xlwt
-import datetime
 from unidecode import unidecode
 
 ### GLOBALS
 INPUT_SPREADSHEET = '../../data/input/kyle4.xls'
-KEEP_CRITERIA = 2009
+YEAR = 2009
 OUTPUT_SPREADSHEET = '../../data/geocoding/official_mls_2009_sales.xls'
 
 def get_spreadsheet_rows(spreadsheet_filename):
@@ -41,9 +41,9 @@ def get_spreadsheet_rows(spreadsheet_filename):
             start_address = str(row[3]).strip()
         except:
             start_address = unidecode(row[3]).strip()
-
-
-        if row_year != KEEP_CRITERIA:
+        if row[2] == 'PCI':
+            continue
+        if row_year != YEAR:
             continue
         elif start_address == '' or start_address == 'A VENIR':
             continue

@@ -7,7 +7,6 @@ import osgeo.ogr
 from collections import OrderedDict
 import re
 
-from pprint import pprint
 
 def init_database(database_name):
     '''Initiate database connection'''
@@ -217,10 +216,10 @@ def join_to_new_table(database_fn, table_to_join, table_get_join, match_column, 
 
 
 # DUPLICATING A TABLE
-database_filename = 'test.sqlite'
-old_table_name = 'test_join2'
-new_table_name = 'joined_data'
-duplicate_table(database_filename, old_table_name, new_table_name)
+# database_filename = '../../data/databases/roll_shapefile.sqlite'
+# old_table_name = 'test_join2'
+# new_table_name = 'joined_data'
+# duplicate_table(database_filename, old_table_name, new_table_name)
 
 # COPY TABLE TO NEW DB
 # from_database = 'DOM_B72LIEN1_TAB.sqlite'
@@ -230,14 +229,15 @@ duplicate_table(database_filename, old_table_name, new_table_name)
 # copy_table(from_database, from_table, to_database, to_table)
 
 # SHAPEFILE .DBF TO SQLITE
-# dbf_filename = 'MLS_mtl_only_4269.dbf'
-# database_filename = 'abcdefg.sqlite'
+# dbf_filename = '../../data/official_data/CMM_role2011_Tab_DBF/CMM_Role2011_Tab_DBF/ROL_B61_TAB.dbf'
+# database_filename = '../../data/databases/roll_shapefile.sqlite'
 # dbf_to_db_table(dbf_filename, database_filename)
 
 # JOIN TWO TABLES TO A NEW TABLE
-# database_filename = 'test.sqlite'
-# table_to_join = 'rol_b61_tab'
-# table_get_join = 'test_join'
-# match_column = 'mat18'
-# new_table_name = 'test_join2'
-# join_to_new_table(database_filename, table_to_join, table_get_join, match_column, new_table_name)
+database_filename = '../../data/databases/roll_shapefile.sqlite'
+table_to_join = 'ROL_B61_TAB'
+table_get_join = 'roll_and_b72'
+match_column = 'mat18'
+new_table_name = 'full_data'
+join_to_new_table(database_filename, table_to_join, table_get_join, match_column, new_table_name)
+

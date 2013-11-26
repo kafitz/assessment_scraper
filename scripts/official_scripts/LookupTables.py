@@ -39,7 +39,7 @@ class LookupTable:
         '25' : ['cours'],
         '26' : ['court'],
         '29' : ['crescent'],
-        '32' : ['croissant'],
+        '32' : ['croissant', 'crois.'],
         '34' : ['descente'],
         '35' : ['desserte'],
         '36' : ['domaine'],

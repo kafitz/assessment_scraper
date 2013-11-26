@@ -3,9 +3,9 @@
 
 import shapefile
 
-POINTS_JOINED_REGIONS = '../../data/shapefiles/correlated_sample_points_municipalities'
-REGION_BASEMAP = '../../data/shapefiles/assessment_role_regions'
-OUTPUT_SHAPEFILE = '../../data/shapefiles/assessment_role_regions_correlated'
+POINTS_JOINED_REGIONS = '../../data/shapefiles/correlated_samples_regions'
+REGION_BASEMAP = '../../data/shapefiles/full_region'
+OUTPUT_SHAPEFILE = '../../data/shapefiles/coded_region_map'
 
 
 points_sf = shapefile.Reader(POINTS_JOINED_REGIONS)
@@ -14,11 +14,11 @@ points_records = points_sf.records()
 # create a dict of polygon regions each with a list of roll_codes from the joined polygon_name
 points_by_regions = {}
 for p_record in points_records:
-    # init dict structure for new regions
-    if not points_by_regions.get(p_record[-3]):
-        points_by_regions[p_record[-3]] = []
+    print p_record[-12], p_record[4]
+    if not points_by_regions.get(p_record[-12]):
+        points_by_regions[p_record[-12]] = []
     # points_by_regions[region_name] = [list of codes]
-    points_by_regions[p_record[-3]].append(int(p_record[5]))
+    points_by_regions[p_record[-12]].append(int(p_record[4]))
 
 # find the most common role code for each region name
 region_codes = {}
@@ -34,8 +34,8 @@ output_sf.fields = list(regions_sf.fields)
 output_sf.field('CODE_INT', 'N', '40')
 
 for reg_record in regions_records:
-    if region_codes.get(reg_record[-3]):
-        reg_record.append(region_codes[reg_record[-3]])
+    if region_codes.get(reg_record[1]):
+        reg_record.append(region_codes[reg_record[1]])
     else:
         reg_record.append(None)
     output_sf.records.append(reg_record)

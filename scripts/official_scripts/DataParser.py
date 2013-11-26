@@ -3,34 +3,28 @@
 '''Collection of functions for parsing various data sets to dictionaries'''
 
 import datetime
+import csv
 import xlrd
 from unidecode import unidecode
 from LookupTables import LookupTable as LT
 
 
-def get_xls_dict(spreadsheet_filename, target_year):
+def get_csv_dict(tsv_filename, target_year):
     '''Load MLS sales spreadsheet to a dictionary'''
     
     def _create_row_dict(headers, row):
         return dict(zip(headers, row))
 
-    workbook = xlrd.open_workbook(spreadsheet_filename)
-    sheet = workbook.sheet_by_index(0)
-
+    rows = list(csv.reader(open(tsv_filename, 'rb')))
+    headers = rows.pop(0)
     row_list = []
-    for index in range(sheet.nrows):
-        # fetch header row
-        if index == 0:
-            headers = sheet.row_values(index)
-            continue
-        row = sheet.row_values(index)
-        if int(row[-1]) == 0:
-            continue
+    for index, row in enumerate(rows):
+        print unidecode(row[3].decode('utf-8'))
         # read date from excel (try as string, then as excel date)
-        try:
-            row_year = int(row[1].split('/')[-1])
-        except:
-            row_date = datetime.datetime(*xlrd.xldate_as_tuple(row[8], workbook.datemode))
+        if '/' in row[7]:
+            row_year = int(row[7].split('/')[-1])
+        else:
+            row_date = datetime.datetime(*xlrd.xldate_as_tuple(int(row[7]), 0))
             row_year = row_date.year
         # remove rows that do match the desired year from input            
         if row_year == target_year:
@@ -42,8 +36,7 @@ def get_xls_dict(spreadsheet_filename, target_year):
 
 def get_street_parameters(row):
     '''Format input .xls row to dictionary'''
-    street = row['nom_complet']
-    street_name = unidecode(street).lower()
+    street_name = unidecode(row['nom_comple'].decode('utf-8')).lower()
     name_parts = street_name.split()
     street_type_code = None
     orientation = None
@@ -97,16 +90,16 @@ def get_street_parameters(row):
         article = None
         street_nominal = ' '.join(name_parts).upper()
     ## STREET NUMBERS
-    lower_street_num = row['no_civique_debut']
+    lower_street_num = row['no_civique']
     upper_street_num = None
-    if row['no_civique_fin']:
-        upper_street_num = row['no_civique_fin']
+    if row['no_civiq_1']:
+        upper_street_num = row['no_civiq_1']
     ## SUITE NUMBER
     suite = None
-    if row['appartement']:
-        suite = row['appartement']
+    if row['appartemen']:
+        suite = row['appartemen']
     # MUNICIPAL CODE
-    muni_code = int(row['CODE_INT'] )
+    muni_code = int(row['CodeMun'] )
     ## OUTPUT DICT
     street_parameters = {
         'street_nominal': street_nominal,
@@ -118,6 +111,6 @@ def get_street_parameters(row):
         'street_number_lower': lower_street_num,
         'street_number_upper': upper_street_num,
         'suite_num': suite,
-        'role_muni_code': muni_code
+        'roll_muni_code': muni_code
         }
     return street_parameters
