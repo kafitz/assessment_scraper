@@ -2,6 +2,7 @@
 # 2013 Kyle Fitzsimmons
 '''Collection of functions for parsing various data sets to dictionaries'''
 
+import datetime
 import xlrd
 from unidecode import unidecode
 from LookupTables import LookupTable as LT
@@ -14,7 +15,7 @@ def get_xls_dict(spreadsheet_filename, target_year):
         return dict(zip(headers, row))
 
     workbook = xlrd.open_workbook(spreadsheet_filename)
-    sheet = workbook.sheet_by_index(1)
+    sheet = workbook.sheet_by_index(0)
 
     row_list = []
     for index in range(sheet.nrows):
@@ -23,8 +24,15 @@ def get_xls_dict(spreadsheet_filename, target_year):
             headers = sheet.row_values(index)
             continue
         row = sheet.row_values(index)
-        # remove rows that do match the desired year from input
-        row_year = int(row[1].split('/')[-1])
+        if int(row[-1]) == 0:
+            continue
+        # read date from excel (try as string, then as excel date)
+        try:
+            row_year = int(row[1].split('/')[-1])
+        except:
+            row_date = datetime.datetime(*xlrd.xldate_as_tuple(row[8], workbook.datemode))
+            row_year = row_date.year
+        # remove rows that do match the desired year from input            
         if row_year == target_year:
             row_list.append(row)
         else:
@@ -97,6 +105,8 @@ def get_street_parameters(row):
     suite = None
     if row['appartement']:
         suite = row['appartement']
+    # MUNICIPAL CODE
+    muni_code = int(row['CODE_INT'] )
     ## OUTPUT DICT
     street_parameters = {
         'street_nominal': street_nominal,
@@ -107,6 +117,7 @@ def get_street_parameters(row):
         'article_code': article_code,
         'street_number_lower': lower_street_num,
         'street_number_upper': upper_street_num,
-        'suite_num': suite 
+        'suite_num': suite,
+        'role_muni_code': muni_code
         }
     return street_parameters

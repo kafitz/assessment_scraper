@@ -9,8 +9,9 @@ from pprint import pprint
 import time
 
 ### GLOBALS
-INPUT_SPREADSHEET = '../../data/input/kyle3.xls'
+INPUT_SPREADSHEET = '../../data/input/sales_with_muni_codes.xls'
 LOOKUP_DB = '../../data/official_data/test.sqlite'
+OUTPUT_DB = '../../data/databases/matched_mls_assessments.sqlite'
 YEAR = 2009
 
 db = Database(LOOKUP_DB)
@@ -35,42 +36,6 @@ def db_match_suite(street_parameters, db_matches):
             matching_result = match
     return matching_result
 
-def db_search_entire_street(table, street_parameters):
-    '''If exact match fails: search for address in the full range of 
-    addresses for the particular street'''
-    start_time = time.time()
-    street_name = street_parameters['street_nominal']
-    street_number_lower = street_parameters['street_number_lower']
-    print time.time() - start_time
-    sql_command = '''SELECT "b72m1", "b72a1" FROM '{}' WHERE "b72voie1"="{}"'''.format(table, street_name)
-    print sql_command
-    db.query(sql_command)
-    possible_pairs = []
-    print time.time() - start_time
-    for address_pair in sorted(db.fetchall()):
-        # ignore tuples that do not form an address range for a property
-        if address_pair[1] == 0:
-            continue
-        # find all tuple pairs that contain the specified addresses
-        if address_pair[0] <= street_number_lower and address_pair[1] >= street_number_lower:
-            possible_pairs.append(address_pair)
-    matched_address_pair = None
-    print time.time() - start_time
-    for matching_pair in possible_pairs:
-        # generate the range of possible addresses for a certain property (inclusive of the last address)
-        address_range = range(matching_pair[0], matching_pair[1], 2)
-        address_range.append(matching_pair[1])
-        if street_number_lower in [str(x) for x in address_range]:
-            matched_address_pair = matching_pair
-            break
-    print time.time() - start_time
-    if matched_address_pair:
-        street_parameters['street_number_lower'] = matched_address_pair[0]
-        street_parameters['street_number_upper'] = matched_address_pair[1]
-        return street_parameters
-    else:
-        return None
-
 def get_query_response(street_parameters):
     '''Script-specific function for matching database response to dict variables'''
     def _map_to_dict(db_entry):
@@ -88,14 +53,16 @@ def get_query_response(street_parameters):
     table_name = 'joined_data'
     # create a list of tuples to specifiy the db search criteria
     sql_criteria = [('b72voie1', street_parameters['street_nominal'].upper()),
-                    ('b72m1', street_parameters['street_number_lower'])]   
+                    ('b72m1', street_parameters['street_number_lower']),
+                    ('code_mun', street_parameters['role_muni_code'])]
     if street_parameters['type_code']: # street type
         sql_criteria.append(('b72r1', street_parameters['type_code']))
     r = db_search_address(table_name, sql_criteria)
     if not r:
         # create a list of tuples to specifiy the db search criteria
         sql_criteria = [('b72voie1', street_parameters['street_nominal'].upper()),
-                        ('b72a1', street_parameters['street_number_lower'])]   
+                        ('b72a1', street_parameters['street_number_lower']),
+                        ('code_mun', street_parameters['role_muni_code'])] 
         if street_parameters['type_code']: # street type
             sql_criteria.append(('b72r1', street_parameters['type_code']))
         r = db_search_address(table_name, sql_criteria)
@@ -119,19 +86,9 @@ def get_query_response(street_parameters):
             return result
         else:
             print "Multiple results returned for address, no matching suite found."
-    # no results, look for address in db address range (e.g., 3564 in a building range of 3562-3566)
     else:
         pass
-        # updated_parameters = db_search_entire_street(table_name, street_parameters)
-        # if updated_parameters:
-        #     recursive_result = get_query_response(updated_parameters)
-        #     print "Found address pair: {}-{} {}".format(updated_parameters['street_number_lower'], updated_parameters['street_number_upper'], updated_parameters['street_nominal'])
-        #     return recursive_result
-        # else:
-        #     print "No address match found: {} {}".format(street_parameters['street_number_lower'], street_parameters['street_nominal'])
     return None
-
-
 
 
 ### MAIN
@@ -170,7 +127,6 @@ for row in row_dicts:
             street_parameters['street_nominal'] = street_parts[0]
             result = get_query_response(street_parameters)
         if saved_street_part:
-            print 12345
             street_parameters['street_nominal'] = saved_street_part
             result = get_query_response(street_parameters)
 
@@ -183,7 +139,8 @@ for row in row_dicts:
                    ('orientation', street_parameters['orientation']),
                    ('street_type', street_parameters['street_type']),
                    ('joining_article', street_parameters['joining_article']),
-                   ('article_code', street_parameters['article_code'])
+                   ('article_code', street_parameters['article_code']),
+                   ('muni_code', street_parameters['role_muni_code'])
                    ]
     missing_data = [('start_address', None),
                     ('end_address', None),
@@ -198,8 +155,8 @@ for row in row_dicts:
         output_list += result.items() # results
         matches += 1
     else:
-        address_str = '{}-{} {}, suite {}'.format(row['no_civique_debut'].encode('utf-8'), row['no_civique_fin'].encode('utf-8'),
-                                                    row['nom_complet'].encode('utf-8'), row['appartement'].encode('utf-8'))
+        address_str = '{}-{} {}, suite {}'.format(row['no_civique_debut'], row['no_civique_fin'],
+                                                    row['nom_complet'].encode('utf-8'), row['appartement'])
         print "Missed:", address_str
         output_list += missing_data
         missed_addresses.append(address_str)
@@ -212,11 +169,16 @@ for row in row_dicts:
     print
     index += 1
 
+# create a table with all the data submitted to matching function
 pprint(len(missed_addresses))
 pprint(len(output_rows))
 field_order = ['street_number_lower', 'street_number_upper', 'street_nominal',
                 'orientation', 'suite_num', 'sale_price', 'street_type', 'street_code',
-                'joining_article', 'article_code', 'start_address', 'end_address',
+                'muni_code', 'joining_article', 'article_code', 'start_address', 'end_address',
                 'street_name', 'db_suite', 'land_value', 'building_value', 'total_value']
-output_db = Database('../../data/official_data/test_output.sqlite')
-output_db.write_rows('test', output_rows, field_order)
+output_db = Database(OUTPUT_DB)
+output_db.write_rows('all_data', output_rows, field_order)
+
+# create a table consisting only of a successful matches
+matched_output_rows = [row for row in output_rows if row['total_value'] is not None]
+output_db.write_rows('matched_data', matched_output_rows, field_order)

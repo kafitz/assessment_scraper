@@ -3,7 +3,7 @@
 
 import shapefile
 
-POINTS_JOINED_REGIONS = '../../data/shapefiles/correlated_sale_points_municipalities'
+POINTS_JOINED_REGIONS = '../../data/shapefiles/correlated_sample_points_municipalities'
 REGION_BASEMAP = '../../data/shapefiles/assessment_role_regions'
 OUTPUT_SHAPEFILE = '../../data/shapefiles/assessment_role_regions_correlated'
 
@@ -34,8 +34,8 @@ output_sf.fields = list(regions_sf.fields)
 output_sf.field('CODE_INT', 'N', '40')
 
 for reg_record in regions_records:
-    if region_codes.get(reg_record[0]):
-        reg_record.append(region_codes[reg_record[0]])
+    if region_codes.get(reg_record[-3]):
+        reg_record.append(region_codes[reg_record[-3]])
     else:
         reg_record.append(None)
     output_sf.records.append(reg_record)
