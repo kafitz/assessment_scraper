@@ -1,6 +1,0 @@
-Duplicating an SQLite table:
-1. SELECT sql FROM sqlite_master WHERE type='table' AND name='new_table_name'
-2. INSERT INTO 'new_table_name' SELECT * FROM 'old_table_name'
-
-
-SELECT * FROM rol_b61_tab INNER JOIN full_shapefile_data_2 USING (mat18)

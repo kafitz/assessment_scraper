@@ -3,7 +3,6 @@
 
 import DataParser as DP
 from DatabaseConns import Database
-from OutputCSV import OutputCSV
 from unidecode import unidecode
 from pprint import pprint
 import time
