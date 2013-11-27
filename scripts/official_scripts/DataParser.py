@@ -9,22 +9,21 @@ from unidecode import unidecode
 from LookupTables import LookupTable as LT
 
 
-def get_csv_dict(tsv_filename, target_year):
+def get_csv_dict(csv_filename, target_year):
     '''Load MLS sales spreadsheet to a dictionary'''
     
     def _create_row_dict(headers, row):
         return dict(zip(headers, row))
 
-    rows = list(csv.reader(open(tsv_filename, 'rb')))
+    rows = list(csv.reader(open(csv_filename, 'rb')))
     headers = rows.pop(0)
     row_list = []
     for index, row in enumerate(rows):
-        print unidecode(row[3].decode('utf-8'))
         # read date from excel (try as string, then as excel date)
         if '/' in row[7]:
-            row_year = int(row[7].split('/')[-1])
+            row_year = int(row[8].split('/')[-1])
         else:
-            row_date = datetime.datetime(*xlrd.xldate_as_tuple(int(row[7]), 0))
+            row_date = datetime.datetime(*xlrd.xldate_as_tuple(int(row[8]), 0))
             row_year = row_date.year
         # remove rows that do match the desired year from input            
         if row_year == target_year:
@@ -36,7 +35,8 @@ def get_csv_dict(tsv_filename, target_year):
 
 def get_street_parameters(row):
     '''Format input .xls row to dictionary'''
-    street_name = unidecode(row['nom_comple'].decode('utf-8')).lower()
+    print unidecode(row['nom_comple'])
+    street_name = unidecode(row['nom_comple']).lower()
     name_parts = street_name.split()
     street_type_code = None
     orientation = None
@@ -99,7 +99,7 @@ def get_street_parameters(row):
     if row['appartemen']:
         suite = row['appartemen']
     # MUNICIPAL CODE
-    muni_code = int(row['CodeMun'] )
+    muni_code = int(row['CODE_INT'])
     ## OUTPUT DICT
     street_parameters = {
         'street_nominal': street_nominal,

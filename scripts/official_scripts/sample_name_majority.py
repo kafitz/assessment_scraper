@@ -14,11 +14,10 @@ points_records = points_sf.records()
 # create a dict of polygon regions each with a list of roll_codes from the joined polygon_name
 points_by_regions = {}
 for p_record in points_records:
-    print p_record[-12], p_record[4]
-    if not points_by_regions.get(p_record[-12]):
-        points_by_regions[p_record[-12]] = []
+    if not points_by_regions.get(p_record[-5]):
+        points_by_regions[p_record[-5]] = []
     # points_by_regions[region_name] = [list of codes]
-    points_by_regions[p_record[-12]].append(int(p_record[4]))
+    points_by_regions[p_record[-5]].append(int(p_record[4]))
 
 # find the most common role code for each region name
 region_codes = {}
@@ -34,8 +33,8 @@ output_sf.fields = list(regions_sf.fields)
 output_sf.field('CODE_INT', 'N', '40')
 
 for reg_record in regions_records:
-    if region_codes.get(reg_record[1]):
-        reg_record.append(region_codes[reg_record[1]])
+    if region_codes.get(reg_record[12]):
+        reg_record.append(region_codes[reg_record[12]])
     else:
         reg_record.append(None)
     output_sf.records.append(reg_record)

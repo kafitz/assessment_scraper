@@ -47,7 +47,6 @@ def get_query_response(street_parameters):
         result_dict['land_value'] = db_entry[41]
         result_dict['building_value'] = db_entry[42]
         result_dict['total_value'] = db_entry[43]
-        print result_dict
         return result_dict
     ## SEARCH FOR XLS ADDRESS NUMBER AS BOTH START AND END (if needed) ADDRESS
     table_name = 'full_data'
@@ -57,7 +56,6 @@ def get_query_response(street_parameters):
                     ('CODE_MUN', street_parameters['roll_muni_code'])]
     if street_parameters['type_code']: # street type
         sql_criteria.append(('B72R1', street_parameters['type_code']))
-    print sql_criteria
     r = db_search_address(table_name, sql_criteria)
     if not r:
         # create a list of tuples to specifiy the db search criteria
@@ -135,8 +133,10 @@ for row in row_dicts:
     #input search items
     output_list = [('street_number_lower', row['no_civique']),
                    ('street_number_upper', row['no_civiq_1']),
-                   ('street_nominal', row['nom_comple']),
+                   ('street_nominal', unidecode(row['nom_comple'])),
                    ('suite_num', row['appartemen']),
+                   ('catg_code', row['catg_code']),
+                   ('municipality', unidecode(row['name'])),
                    ('sale_price', row['prix_vendu']),
                    ('orientation', street_parameters['orientation']),
                    ('street_type', street_parameters['street_type']),
@@ -175,8 +175,8 @@ for row in row_dicts:
 pprint(len(missed_addresses))
 pprint(len(output_rows))
 field_order = ['street_number_lower', 'street_number_upper', 'street_nominal',
-                'orientation', 'suite_num', 'sale_price', 'street_type', 'street_code',
-                'muni_code', 'joining_article', 'article_code', 'start_address', 'end_address',
+                'orientation', 'suite_num', 'catg_code', 'sale_price', 'street_type', 'street_code',
+                'muni_code', 'municipality', 'joining_article', 'article_code', 'start_address', 'end_address',
                 'street_name', 'db_suite', 'land_value', 'building_value', 'total_value']
 output_db = Database(OUTPUT_DB)
 output_db.write_rows('all_data', output_rows, field_order)
