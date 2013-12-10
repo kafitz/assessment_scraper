@@ -18,6 +18,11 @@ def get_spreadsheet_rows(spreadsheet_filename):
     sheet_name = sheet.name
 
     row_list = []
+    num_pci = 0
+    num_2006 = 0
+    num_no_sales = 0
+    num_avenir = 0
+
     for index in range(sheet.nrows):
         # fetch header row
         if index == 0:
@@ -42,15 +47,23 @@ def get_spreadsheet_rows(spreadsheet_filename):
         except:
             start_address = unidecode(row[3]).strip()
         if row[2] == 'PCI':
+            num_pci += 1
             continue
         if row_year != YEAR:
+            num_2006 += 1
             continue
         elif start_address == '' or start_address == 'A VENIR':
+            num_avenir += 1
             continue
         elif not sale_price:
+            num_no_sales += 1
             continue
         else:
             row_list.append(row)
+    print num_pci
+    print num_2006
+    print num_no_sales
+    print num_avenir
     return sheet_name, row_list
 
 def write_new_spreadsheet(sheet_name, rows):
@@ -67,4 +80,4 @@ def write_new_spreadsheet(sheet_name, rows):
     return
 
 sheet_name, xls_rows = get_spreadsheet_rows(INPUT_SPREADSHEET)
-write_new_spreadsheet(sheet_name, xls_rows)
+# write_new_spreadsheet(sheet_name, xls_rows)

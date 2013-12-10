@@ -100,6 +100,9 @@ def get_street_parameters(row):
         suite = row['appartemen']
     # MUNICIPAL CODE
     muni_code = int(row['CODE_INT'])
+    # LAT/LNG
+    latitude = float(row['latitude'])
+    longitude = float(row['longitude'])
     ## OUTPUT DICT
     street_parameters = {
         'street_nominal': street_nominal,
@@ -111,6 +114,8 @@ def get_street_parameters(row):
         'street_number_lower': lower_street_num,
         'street_number_upper': upper_street_num,
         'suite_num': suite,
-        'roll_muni_code': muni_code
+        'roll_muni_code': muni_code,
+        'latitude': latitude,
+        'longitude': longitude
         }
     return street_parameters
