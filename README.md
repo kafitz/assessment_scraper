@@ -9,3 +9,5 @@ Dependencies:
     sqlalchemy
     geopy
     
+    
+Project blogs to be found at http://kylefitz.com/
